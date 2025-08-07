@@ -1,6 +1,6 @@
 <template>
-  <div class="container">
-    <div class="right-container">
+  <div class="container" ref="containerRef">
+    <div v-if="false" class="right-container">
       <div class="gantt-selected-info">
         <div v-if="selectedTask">
           <h2>{{ selectedTask.text }}</h2>
@@ -30,11 +30,20 @@
     </div>
     <GanttComponent
       class="left-container"
+      :style="{ width: leftWidth + '%' }"
       :tasks="tasks"
       @task-updated="logTaskUpdate"
       @link-updated="logLinkUpdate"
       @task-selected="selectTask"
     ></GanttComponent>
+    <div class="resize-handle" @mousedown="startDrag"></div>
+    <iframe 
+      class="background-iframe"
+      :style="{ width: (100 - leftWidth) + '%' }"
+      :src="backgroundUrl"
+      frameborder="0"
+      allowfullscreen
+    ></iframe>
   </div>
 </template>
 
@@ -46,24 +55,40 @@ export default {
   components: { GanttComponent },
   data() {
     return {
+      leftWidth: 50,
+      backgroundUrl: 'http://47.111.147.202:10090/video.html',
       tasks: {
         data: [
-          {
-            id: 1,
-            text: "Task #1",
-            start_date: "2020-01-17",
-            duration: 3,
-            progress: 0.6,
-          },
-          {
-            id: 2,
-            text: "Task #2",
-            start_date: "2020-01-20",
-            duration: 3,
-            progress: 0.4,
-          },
+          { id: 11, text: "Project #1", type: "project", progress: 0.6, open: true },
+
+          { id: 12, text: "Task #1", start_date: "03-04-2023", duration: 5, parent: 11, progress: 1, open: true },
+          { id: 13, text: "Task #2", start_date: "03-04-2023", type: "project", parent: 11, progress: 0.5, open: true },
+          { id: 14, text: "Task #3", start_date: "02-04-2023", duration: 6, parent: 11, progress: 0.8, open: true },
+          { id: 15, text: "Task #4", type: "project", parent: 11, progress: 0.2, open: true },
+          { id: 16, text: "Final milestone", start_date: "15-04-2023", type: "milestone", parent: 11, progress: 0, open: true },
+
+          { id: 17, text: "Task #2.1", start_date: "03-04-2023", duration: 2, parent: 13, progress: 1, open: true },
+          { id: 18, text: "Task #2.2", start_date: "06-04-2023", duration: 3, parent: 13, progress: 0.8, open: true },
+          { id: 19, text: "Task #2.3", start_date: "10-04-2023", duration: 4, parent: 13, progress: 0.2, open: true },
+          { id: 20, text: "Task #2.4", start_date: "10-04-2023", duration: 4, parent: 13, progress: 0, open: true },
+          { id: 21, text: "Task #4.1", start_date: "03-04-2023", duration: 4, parent: 15, progress: 0.5, open: true },
+          { id: 22, text: "Task #4.2", start_date: "03-04-2023", duration: 4, parent: 15, progress: 0.1, open: true },
+          { id: 23, text: "Mediate milestone", start_date: "14-04-2023", type: "milestone", parent: 15, progress: 0, open: true }
         ],
-        links: [{ id: 1, source: 1, target: 2, type: "0" }],
+        links: [
+          { id: 10, source: 11, target: 12, type: 1 },
+          { id: 11, source: 11, target: 13, type: 1 },
+          { id: 12, source: 11, target: 14, type: 1 },
+          { id: 13, source: 11, target: 15, type: 1 },
+          { id: 14, source: 23, target: 16, type: 0 },
+          { id: 15, source: 13, target: 17, type: 1 },
+          { id: 16, source: 17, target: 18, type: 0 },
+          { id: 17, source: 18, target: 19, type: 0 },
+          { id: 18, source: 19, target: 20, type: 0 },
+          { id: 19, source: 15, target: 21, type: 2 },
+          { id: 20, source: 15, target: 22, type: 2 },
+          { id: 21, source: 15, target: 23, type: 0 }
+        ]
       },
       selectedTask: null,
       messages: [],
@@ -87,6 +112,41 @@ export default {
     },
   },
   methods: {
+    startDrag(e) {
+      this.isDragging = true;
+      this.startX = e.clientX;
+      this.startWidth = this.leftWidth;
+      
+      document.addEventListener('mousemove', this.drag);
+      document.addEventListener('mouseup', this.stopDrag);
+      
+      // 防止文本选中
+      e.preventDefault();
+    },
+    drag(e) {
+      if (!this.isDragging) return;
+      
+      const container = this.$refs.containerRef;
+      const containerWidth = container.clientWidth;
+      const deltaX = e.clientX - this.startX;
+      const deltaPercent = (deltaX / containerWidth) * 100;
+      
+      // 计算新的左侧宽度，限制在10%-90%之间
+      let newWidth = this.startWidth + deltaPercent;
+      if (newWidth < 10) newWidth = 10;
+      if (newWidth > 90) newWidth = 90;
+      
+      this.leftWidth = newWidth;
+    },
+    stopDrag() {
+      if (this.isDragging) {
+        this.isDragging = false;
+        this.dragCount++;
+      }
+      
+      document.removeEventListener('mousemove', this.drag);
+      document.removeEventListener('mouseup', this.stopDrag);
+    },
     selectTask(task) {
       this.selectedTask = task;
     },
@@ -124,14 +184,49 @@ body {
 }
 
 .container {
+  display: flex;
+  flex-direction: row;
   height: 100vh;
   width: 100%;
+  transition: all 0.3s ease;
 }
 
 .left-container {
+  /* width: 50%; */
   overflow: hidden;
   position: relative;
   height: 100%;
+}
+.background-iframe {
+  /* width: 50%; */
+  height: 100%;
+}
+.resize-handle {
+  width: 8px;
+  background: #3498db;
+  cursor: col-resize;
+  position: relative;
+  transition: background 0.3s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.resize-handle:hover {
+  background: #2980b9;
+}
+
+.resize-handle:active {
+  background: #1c6ea4;
+}
+
+.resize-handle::before {
+  content: "";
+  position: absolute;
+  width: 2px;
+  height: 40px;
+  background: white;
+  border-radius: 1px;
 }
 
 .right-container {

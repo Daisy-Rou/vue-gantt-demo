@@ -11,6 +11,7 @@
   "dependencies": {
     "@dhx/trial-gantt": "^8.0.6",
     "core-js": "^3.8.3",
+    "dhtmlx-gantt": "^9.0.13",
     "vue": "^3.2.37"
   },
   "devDependencies": {
